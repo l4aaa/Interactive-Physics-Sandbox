@@ -20,10 +20,10 @@ This project focuses on the bridge between user input and rigid-body dynamics. I
 ### Building
 ```bash
 # Clone the repository
-git clone [https://github.com/YourUsername/RepositoryName.git](https://github.com/YourUsername/RepositoryName.git)
+git clone [https://github.com/l4aaa/Interactive-Physics-Sandbox.git](https://github.com/l4aaa/Interactive-Physics-Sandbox.git)
 
 # Navigate to directory
-cd RepositoryName
+cd Interactive-Physics-Sandbox
 
 # Compile (example using g++)
 g++ -c main.cpp
