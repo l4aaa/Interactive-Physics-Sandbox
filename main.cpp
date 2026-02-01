@@ -10,6 +10,8 @@ int main() {
     sf::Vector2f lastPos;
     const float gravity = 981.0f;
     const float bounceDamping = 0.7f;
+    const float airResistance = 0.988f;
+    const float dragCoefficient = 0.7f;
 
     bool isGrabbed = false;
     sf::Clock clock;
@@ -48,6 +50,7 @@ int main() {
         } 
         else {
             velocity.y += gravity * dt;
+            velocity *= airResistance;
             shape.move(velocity * dt);
 
             sf::FloatRect bounds = shape.getGlobalBounds();
@@ -68,6 +71,10 @@ int main() {
             if (bounds.left + bounds.width > window.getSize().x) {
                 shape.setPosition(window.getSize().x - bounds.width, bounds.top);
                 velocity.x = -velocity.x * bounceDamping;
+            }
+
+            if (pos.y == bounds.top + bounds.height) {
+                velocity.x *= dragCoefficient;
             }
 
             
