@@ -1,6 +1,8 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <vector>
+#include <string>
+#include <cmath>
 
 struct PhysicsObject {
     sf::RectangleShape shape;
@@ -13,8 +15,6 @@ int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "Interactive-Physics-Sandbox");
     window.setFramerateLimit(60);
 
-
-
     const float gravity = 981.0f;
     const float bounceDamping = 0.98f;
     const float airResistance = 0.988f;
@@ -26,19 +26,45 @@ int main() {
         return -1;
     }
 
-    std::vector<PhysicsObject> objects;
-    PhysicsObject startObj;
-    startObj.shape.setSize(sf::Vector2f(100.f, 100.f));
-    startObj.shape.setTexture(&helloKittyTexture);
-    startObj.shape.setPosition(350.f, 50.f);
-    startObj.velocity = sf::Vector2f(0.f, 0.f);
-    objects.push_back(startObj);
+    sf::Font font;
+    if (!font.loadFromFile("arial.ttf")) {
+        std::cerr << "Failed to load font!" << std::endl;
+    }
 
+    sf::Text legend;
+    legend.setFont(font);
+    legend.setCharacterSize(16);
+    legend.setFillColor(sf::Color::Cyan);
+    legend.setPosition(10.f, 10.f);
+    legend.setString(
+        "CONTROLS:\n"
+        "[Left Click]  Grab & Throw\n"
+        "[Right Click] Spawn Object\n"
+        "[R]           Reset Simulation"
+    );
+
+    sf::Text velocityText;
+    velocityText.setFont(font);
+    velocityText.setCharacterSize(14);
+    velocityText.setFillColor(sf::Color::White);
+
+    std::vector<PhysicsObject> objects;
+    auto spawnObject = [&](float x, float y) {
+        PhysicsObject obj;
+        obj.shape.setSize(sf::Vector2f(100.f, 100.f));
+        obj.shape.setTexture(&helloKittyTexture);
+        obj.shape.setPosition(x, y);
+        obj.velocity = sf::Vector2f(0.f, 0.f);
+        objects.push_back(obj);
+    };
+
+    spawnObject(350.f, 50.f);
     sf::Clock clock;
 
     while (window.isOpen()) {
         sf::Time elapsed = clock.restart();
         float dt = elapsed.asSeconds();
+
         sf::Vector2i mousePos = sf::Mouse::getPosition(window);
         sf::Event event;
 
@@ -46,24 +72,12 @@ int main() {
             if (event.type == sf::Event::Closed) window.close();
 
             if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
-                PhysicsObject newObj;
-                newObj.shape.setSize(sf::Vector2f(100.f, 100.f));
-                newObj.shape.setTexture(&helloKittyTexture);
-                newObj.shape.setPosition(
-                    static_cast<float>(mousePos.x) - 50.f, 
-                    static_cast<float>(mousePos.y) - 50.f
-                );
-                objects.push_back(newObj);
+                spawnObject(static_cast<float>(mousePos.x) - 50.f, static_cast<float>(mousePos.y) - 50.f);
             }
 
             if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::R) {
                 objects.clear();
-                PhysicsObject startObj;
-                startObj.shape.setSize(sf::Vector2f(100.f, 100.f));
-                startObj.shape.setTexture(&helloKittyTexture);
-                startObj.shape.setPosition(350.f, 50.f);
-                startObj.velocity = sf::Vector2f(0.f, 0.f);
-                objects.push_back(startObj);
+                spawnObject(350.f, 50.f);
             }
 
             if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
@@ -97,7 +111,7 @@ int main() {
                 if (bounds.top + bounds.height > window.getSize().y) {
                     obj.shape.setPosition(bounds.left, window.getSize().y - bounds.height);
                     obj.velocity.y = -obj.velocity.y * bounceDamping;
-                    obj.velocity.x *= dragCoefficient; 
+                    obj.velocity.x *= dragCoefficient;
                 }
                 if (bounds.top < 0) {
                     obj.shape.setPosition(bounds.left, 0);
@@ -113,6 +127,7 @@ int main() {
                 }
             }
         }
+
         for (size_t i = 0; i < objects.size(); ++i) {
             for (size_t j = i + 1; j < objects.size(); ++j) {
                 sf::FloatRect overlap;
@@ -122,7 +137,6 @@ int main() {
                         float dir = (objects[i].shape.getPosition().x < objects[j].shape.getPosition().x) ? -1.f : 1.f;
                         objects[i].shape.move(push * dir, 0);
                         objects[j].shape.move(push * -dir, 0);
-                        
                         std::swap(objects[i].velocity.x, objects[j].velocity.x);
                         objects[i].velocity.x *= bounceDamping;
                         objects[j].velocity.x *= bounceDamping;
@@ -131,17 +145,25 @@ int main() {
                         float dir = (objects[i].shape.getPosition().y < objects[j].shape.getPosition().y) ? -1.f : 1.f;
                         objects[i].shape.move(0, push * dir);
                         objects[j].shape.move(0, push * -dir);
-
                         std::swap(objects[i].velocity.y, objects[j].velocity.y);
                         objects[i].velocity.y *= bounceDamping;
                         objects[j].velocity.y *= bounceDamping;
                     }
                 }
             }
-        }   
+        }
 
         window.clear(sf::Color::Black);
-        for (const auto& obj : objects) window.draw(obj.shape);
+        
+        for (const auto& obj : objects) {
+            window.draw(obj.shape);
+            int speed = static_cast<int>(std::sqrt(obj.velocity.x * obj.velocity.x + obj.velocity.y * obj.velocity.y));
+            velocityText.setString("Vel: " + std::to_string(speed));
+            velocityText.setPosition(obj.shape.getPosition().x, obj.shape.getPosition().y - 20.f);
+            window.draw(velocityText);
+        }
+
+        window.draw(legend);
         window.display();
     }
     return 0;
