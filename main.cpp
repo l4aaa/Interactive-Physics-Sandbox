@@ -23,6 +23,9 @@ int main() {
     const float airResistance = 0.988f;
     const float dragCoefficient = 0.7f;
 
+    bool showLegend = true;
+    bool showVelocity = true;
+
     sf::Texture helloKittyTexture;
     if (!helloKittyTexture.loadFromFile("hello-kitty.png")) {
         std::cerr << "Failed to load texture!" << std::endl;
@@ -74,13 +77,17 @@ int main() {
                 if (bounceDamping > 1.5f) bounceDamping = 1.5f;
             }
 
-            if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
-                spawnObject(static_cast<float>(mousePos.x) - 50.f, static_cast<float>(mousePos.y) - 50.f);
+            if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::R) {
+                    objects.clear();
+                    spawnObject(350.f, 50.f);
+                }
+                if (event.key.code == sf::Keyboard::L) showLegend = !showLegend;
+                if (event.key.code == sf::Keyboard::V) showVelocity = !showVelocity;
             }
 
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::R) {
-                objects.clear();
-                spawnObject(350.f, 50.f);
+            if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
+                spawnObject(static_cast<float>(mousePos.x) - 50.f, static_cast<float>(mousePos.y) - 50.f);
             }
 
             if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
@@ -102,6 +109,8 @@ int main() {
            << "[Left Click]  Grab & Throw\n"
            << "[Right Click] Spawn Object\n"
            << "[Scroll]      Bounciness: " << std::fixed << std::setprecision(2) << bounceDamping << "\n"
+           << "[L]           Toggle Legend\n"
+           << "[V]           Toggle Velocity\n"
            << "[R]           Reset Simulation";
         legend.setString(ss.str());
 
@@ -171,12 +180,14 @@ int main() {
             float currentSpeed = std::sqrt(obj.velocity.x * obj.velocity.x + obj.velocity.y * obj.velocity.y);
             obj.smoothedVelocity = obj.smoothedVelocity + (currentSpeed - obj.smoothedVelocity) * 0.1f;
             
-            velocityText.setString("Vel: " + std::to_string(static_cast<int>(obj.smoothedVelocity)));
-            velocityText.setPosition(obj.shape.getPosition().x, obj.shape.getPosition().y - 20.f);
-            window.draw(velocityText);
+            if (showVelocity) {
+                velocityText.setString("Vel: " + std::to_string(static_cast<int>(obj.smoothedVelocity)));
+                velocityText.setPosition(obj.shape.getPosition().x, obj.shape.getPosition().y - 20.f);
+                window.draw(velocityText);
+            }
         }
 
-        window.draw(legend);
+        if (showLegend) window.draw(legend);
         window.display();
     }
     return 0;
