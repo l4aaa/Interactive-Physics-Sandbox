@@ -16,7 +16,7 @@ int main() {
 
 
     const float gravity = 981.0f;
-    const float bounceDamping = 0.7f;
+    const float bounceDamping = 0.98f;
     const float airResistance = 0.988f;
     const float dragCoefficient = 0.7f;
 
@@ -27,13 +27,12 @@ int main() {
     }
 
     std::vector<PhysicsObject> objects;
-    for (int i = 0; i < 3; ++i) {
-        PhysicsObject obj;
-        obj.shape.setSize(sf::Vector2f(100.f, 100.f));
-        obj.shape.setTexture(&helloKittyTexture);
-        obj.shape.setPosition(150.f + (i * 200.f), 50.f);
-        objects.push_back(obj);
-    }
+    PhysicsObject startObj;
+    startObj.shape.setSize(sf::Vector2f(100.f, 100.f));
+    startObj.shape.setTexture(&helloKittyTexture);
+    startObj.shape.setPosition(350.f, 50.f);
+    startObj.velocity = sf::Vector2f(0.f, 0.f);
+    objects.push_back(startObj);
 
     sf::Clock clock;
 
@@ -46,12 +45,25 @@ int main() {
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) window.close();
 
+            if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
+                PhysicsObject newObj;
+                newObj.shape.setSize(sf::Vector2f(100.f, 100.f));
+                newObj.shape.setTexture(&helloKittyTexture);
+                newObj.shape.setPosition(
+                    static_cast<float>(mousePos.x) - 50.f, 
+                    static_cast<float>(mousePos.y) - 50.f
+                );
+                objects.push_back(newObj);
+            }
+
             if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::R) {
-                for (size_t i = 0; i < objects.size(); ++i) {
-                    objects[i].shape.setPosition(150.f + (i * 200.f), 50.f);
-                    objects[i].velocity = sf::Vector2f(0.f, 0.f);
-                    objects[i].isGrabbed = false;
-                }
+                objects.clear();
+                PhysicsObject startObj;
+                startObj.shape.setSize(sf::Vector2f(100.f, 100.f));
+                startObj.shape.setTexture(&helloKittyTexture);
+                startObj.shape.setPosition(350.f, 50.f);
+                startObj.velocity = sf::Vector2f(0.f, 0.f);
+                objects.push_back(startObj);
             }
 
             if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
@@ -98,6 +110,32 @@ int main() {
                 if (bounds.left + bounds.width > window.getSize().x) {
                     obj.shape.setPosition(window.getSize().x - bounds.width, bounds.top);
                     obj.velocity.x = -obj.velocity.x * bounceDamping;
+                }
+            }
+        }
+        for (size_t i = 0; i < objects.size(); ++i) {
+            for (size_t j = i + 1; j < objects.size(); ++j) {
+                sf::FloatRect overlap;
+                if (objects[i].shape.getGlobalBounds().intersects(objects[j].shape.getGlobalBounds(), overlap)) {
+                    if (overlap.width < overlap.height) {
+                        float push = overlap.width / 2.0f;
+                        float dir = (objects[i].shape.getPosition().x < objects[j].shape.getPosition().x) ? -1.f : 1.f;
+                        objects[i].shape.move(push * dir, 0);
+                        objects[j].shape.move(push * -dir, 0);
+                        
+                        std::swap(objects[i].velocity.x, objects[j].velocity.x);
+                        objects[i].velocity.x *= bounceDamping;
+                        objects[j].velocity.x *= bounceDamping;
+                    } else {
+                        float push = overlap.height / 2.0f;
+                        float dir = (objects[i].shape.getPosition().y < objects[j].shape.getPosition().y) ? -1.f : 1.f;
+                        objects[i].shape.move(0, push * dir);
+                        objects[j].shape.move(0, push * -dir);
+
+                        std::swap(objects[i].velocity.y, objects[j].velocity.y);
+                        objects[i].velocity.y *= bounceDamping;
+                        objects[j].velocity.y *= bounceDamping;
+                    }
                 }
             }
         }   
