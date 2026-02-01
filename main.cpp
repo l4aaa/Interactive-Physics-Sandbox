@@ -3,9 +3,11 @@
 int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "Interactive-Physics-Sandbox");
     window.setFramerateLimit(60);
-    sf::RectangleShape shape(sf::Vector2f(100.f, 100.f));
+    sf::RectangleShape shape(sf::Vector2f(50.f, 50.f));
     shape.setFillColor(sf::Color::Green);
     shape.setPosition(350.f, 250.f);
+    sf::Vector2f velocity(0.f, 0.f);
+    const float gravity = 0.5f;
 
 
     while (window.isOpen()) {
@@ -15,6 +17,9 @@ int main() {
                 window.close();
         }
 
+        window.clear(sf::Color::Black);
+        velocity.y += gravity;
+        shape.move(velocity);
         window.clear(sf::Color::Black);
         window.draw(shape);
         window.display();
