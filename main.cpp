@@ -8,7 +8,7 @@ int main() {
     shape.setPosition(350.f, 50.f);
     sf::Vector2f velocity(0.f, 0.f);
     const float gravity = 981.0f;
-    const float floorY = 550.f;
+    const float bounceDamping = 0.1f;
 
     bool isGrabbed = false;
     sf::Clock clock;
@@ -41,13 +41,32 @@ int main() {
             shape.setPosition(static_cast<float>(mousePos.x) - shape.getSize().x / 2,
                               static_cast<float>(mousePos.y) - shape.getSize().y / 2);
             velocity = sf::Vector2f(0.f, 0.f);
-        } else {
+        } 
+        else {
             velocity.y += gravity * dt;
             shape.move(velocity * dt);
-            if (shape.getPosition().y > floorY) {
-                velocity.y = 0.f;
-                shape.setPosition(shape.getPosition().x, floorY);
+
+            sf::FloatRect bounds = shape.getGlobalBounds();
+            sf::Vector2 pos = shape.getPosition();
+
+            if (bounds.top + bounds.height > window.getSize().y) {
+                shape.setPosition(bounds.left, window.getSize().y - bounds.height);
+                velocity.y = -velocity.y * bounceDamping;
             }
+            if (bounds.top < 0) {
+                shape.setPosition(bounds.left, 0);
+                velocity.y = -velocity.y * bounceDamping;
+            }
+            if (bounds.left < 0) {
+                shape.setPosition(0, bounds.top);
+                velocity.x = -velocity.x * bounceDamping;
+            }
+            if (bounds.left + bounds.width > window.getSize().x) {
+                shape.setPosition(window.getSize().x - bounds.width, bounds.top);
+                velocity.x = -velocity.x * bounceDamping;
+            }
+
+            
         }
         window.clear(sf::Color::Black);
         window.draw(shape);
