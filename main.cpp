@@ -3,11 +3,14 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <iomanip>
+#include <sstream>
 
 struct PhysicsObject {
     sf::RectangleShape shape;
     sf::Vector2f velocity = {0.f, 0.f};
     sf::Vector2f lastPos;
+    float smoothedVelocity = 0.f;
     bool isGrabbed = false;
 };
 
@@ -16,7 +19,7 @@ int main() {
     window.setFramerateLimit(60);
 
     const float gravity = 981.0f;
-    const float bounceDamping = 0.98f;
+    float bounceDamping = 0.8f;
     const float airResistance = 0.988f;
     const float dragCoefficient = 0.7f;
 
@@ -36,12 +39,6 @@ int main() {
     legend.setCharacterSize(16);
     legend.setFillColor(sf::Color::Cyan);
     legend.setPosition(10.f, 10.f);
-    legend.setString(
-        "CONTROLS:\n"
-        "[Left Click]  Grab & Throw\n"
-        "[Right Click] Spawn Object\n"
-        "[R]           Reset Simulation"
-    );
 
     sf::Text velocityText;
     velocityText.setFont(font);
@@ -71,6 +68,12 @@ int main() {
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) window.close();
 
+            if (event.type == sf::Event::MouseWheelScrolled) {
+                bounceDamping += event.mouseWheelScroll.delta * 0.05f;
+                if (bounceDamping < 0.f) bounceDamping = 0.f;
+                if (bounceDamping > 1.5f) bounceDamping = 1.5f;
+            }
+
             if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
                 spawnObject(static_cast<float>(mousePos.x) - 50.f, static_cast<float>(mousePos.y) - 50.f);
             }
@@ -93,6 +96,14 @@ int main() {
                 for (auto& obj : objects) obj.isGrabbed = false;
             }
         }
+
+        std::stringstream ss;
+        ss << "CONTROLS:\n"
+           << "[Left Click]  Grab & Throw\n"
+           << "[Right Click] Spawn Object\n"
+           << "[Scroll]      Bounciness: " << std::fixed << std::setprecision(2) << bounceDamping << "\n"
+           << "[R]           Reset Simulation";
+        legend.setString(ss.str());
 
         for (auto& obj : objects) {
             if (obj.isGrabbed) {
@@ -155,10 +166,12 @@ int main() {
 
         window.clear(sf::Color::Black);
         
-        for (const auto& obj : objects) {
+        for (auto& obj : objects) {
             window.draw(obj.shape);
-            int speed = static_cast<int>(std::sqrt(obj.velocity.x * obj.velocity.x + obj.velocity.y * obj.velocity.y));
-            velocityText.setString("Vel: " + std::to_string(speed));
+            float currentSpeed = std::sqrt(obj.velocity.x * obj.velocity.x + obj.velocity.y * obj.velocity.y);
+            obj.smoothedVelocity = obj.smoothedVelocity + (currentSpeed - obj.smoothedVelocity) * 0.1f;
+            
+            velocityText.setString("Vel: " + std::to_string(static_cast<int>(obj.smoothedVelocity)));
             velocityText.setPosition(obj.shape.getPosition().x, obj.shape.getPosition().y - 20.f);
             window.draw(velocityText);
         }
