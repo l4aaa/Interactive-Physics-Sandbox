@@ -4,6 +4,11 @@ A lightweight, real-time 2D physics engine prototype built in C++ using SFML. Th
 
 Instead of a simple "snap-to-cursor" drag mechanic, this engine calculates object displacement during interaction to preserve momentum. This allows users to "flick" and throw objects across the simulation with realistic kinetic transfer.
 
+## 🎥 Demo
+![ezgif com-crop](https://github.com/user-attachments/assets/ffac3789-16c5-4063-beb8-0ad24de3a382)
+
+
+
 ## ✨ Features
 * **Momentum-Based Interaction:** Objects track mouse velocity while grabbed, injecting kinetic energy back into the simulation upon release.
 * **Impulse Resolution:** Realistic bouncing and energy dissipation using configurable coefficients of restitution.
