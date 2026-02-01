@@ -22,6 +22,7 @@ int main() {
         return -1;
     }
     shape.setTexture(&helloKittyTexture);
+    shape.setOrigin(0.f, 0.f);
 
 
     while (window.isOpen()) {
