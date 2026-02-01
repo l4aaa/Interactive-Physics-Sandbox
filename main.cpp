@@ -24,6 +24,11 @@ int main() {
     shape.setTexture(&helloKittyTexture);
     shape.setOrigin(0.f, 0.f);
 
+    auto resetSimulation = [&]() {
+        shape.setPosition(350.f, 50.f);
+        velocity = sf::Vector2f(0.f, 0.f);
+        isGrabbed = false;
+    };
 
     while (window.isOpen()) {
         sf::Event event;
@@ -35,6 +40,12 @@ int main() {
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
                 window.close();
+
+            if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::R) {
+                    resetSimulation();
+                }
+            }
             
             if (event.type == sf::Event::MouseButtonPressed) {
                 if (event.mouseButton.button == sf::Mouse::Left) {
