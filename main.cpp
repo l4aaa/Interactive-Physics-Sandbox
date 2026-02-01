@@ -1,10 +1,11 @@
 #include <SFML/Graphics.hpp>
+#include <iostream>
 
 int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "Interactive-Physics-Sandbox");
     window.setFramerateLimit(60);
-    sf::RectangleShape shape(sf::Vector2f(50.f, 50.f));
-    shape.setFillColor(sf::Color::Green);
+    sf::RectangleShape shape(sf::Vector2f(100.f, 100.f));
+    //shape.setFillColor(sf::Color::Green);
     shape.setPosition(350.f, 50.f);
     sf::Vector2f velocity(0.f, 0.f);
     sf::Vector2f lastPos;
@@ -15,6 +16,12 @@ int main() {
 
     bool isGrabbed = false;
     sf::Clock clock;
+    sf::Texture helloKittyTexture;
+    if (!helloKittyTexture.loadFromFile("hello-kitty.png")) {
+        std::cerr << "Failed to load texture!" << std::endl;
+        return -1;
+    }
+    shape.setTexture(&helloKittyTexture);
 
 
     while (window.isOpen()) {
