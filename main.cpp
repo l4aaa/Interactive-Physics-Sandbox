@@ -7,8 +7,9 @@ int main() {
     shape.setFillColor(sf::Color::Green);
     shape.setPosition(350.f, 50.f);
     sf::Vector2f velocity(0.f, 0.f);
+    sf::Vector2f lastPos;
     const float gravity = 981.0f;
-    const float bounceDamping = 0.1f;
+    const float bounceDamping = 0.7f;
 
     bool isGrabbed = false;
     sf::Clock clock;
@@ -38,9 +39,12 @@ int main() {
             }
         }
         if (isGrabbed) {
+            lastPos = shape.getPosition();
             shape.setPosition(static_cast<float>(mousePos.x) - shape.getSize().x / 2,
                               static_cast<float>(mousePos.y) - shape.getSize().y / 2);
-            velocity = sf::Vector2f(0.f, 0.f);
+            if (dt > 0) {
+                velocity = (shape.getPosition() - lastPos) / dt;
+            }
         } 
         else {
             velocity.y += gravity * dt;
