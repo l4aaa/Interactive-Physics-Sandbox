@@ -5,9 +5,10 @@ int main() {
     window.setFramerateLimit(60);
     sf::RectangleShape shape(sf::Vector2f(50.f, 50.f));
     shape.setFillColor(sf::Color::Green);
-    shape.setPosition(350.f, 250.f);
+    shape.setPosition(350.f, 50.f);
     sf::Vector2f velocity(0.f, 0.f);
     const float gravity = 981.0f;
+    const float floorY = 550.f;
     sf::Clock clock;
 
 
@@ -22,8 +23,11 @@ int main() {
 
         window.clear(sf::Color::Black);
         velocity.y += gravity * dt;
-        shape.move(velocity);
-        window.clear(sf::Color::Black);
+        shape.move(velocity * dt);
+        if (shape.getPosition().y > floorY) {
+            velocity.y = 0.f;
+            shape.setPosition(shape.getPosition().x, floorY);
+        }
         window.draw(shape);
         window.display();
     }
