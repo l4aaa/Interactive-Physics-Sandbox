@@ -42,3 +42,11 @@
 
 # IDE files
 .vscode/
+
+# folders
+dist/
+build_win/
+
+# CMake files
+*.txt
+*.sh
