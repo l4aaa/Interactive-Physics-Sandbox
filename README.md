@@ -26,7 +26,7 @@ Instead of a simple "snap-to-cursor" drag mechanic, this engine calculates objec
 ### Building & Running
 ```bash
 # Clone the repository
-git clone [https://github.com/l4aaa/Interactive-Physics-Sandbox.git](https://github.com/l4aaa/Interactive-Physics-Sandbox.git)
+git clone https://github.com/l4aaa/Interactive-Physics-Sandbox.git
 cd Interactive-Physics-Sandbox
 
 # Compile (example using g++)
