@@ -50,3 +50,5 @@ build_win/
 # CMake files
 *.txt
 *.sh
+
+physics-app
