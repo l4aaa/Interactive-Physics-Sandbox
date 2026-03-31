@@ -1,20 +1,16 @@
 # Interactive Physics Sandbox 📦
 
-A lightweight, real-time 2D physics engine prototype built in C++ using SFML. This project demonstrates the bridge between user input and rigid-body dynamics, focusing on tactile feedback and stable collision resolution.
+A lightweight, real-time 2D physics engine prototype built in C++ using SFML. This project demonstrates the bridge between user input and rigid-body dynamics, focusing on tactile feedback, stable collision resolution, and performance scalability.
 
-Instead of a simple "snap-to-cursor" drag mechanic, this engine calculates object displacement during interaction to preserve momentum. This allows users to "flick" and throw objects across the simulation with realistic kinetic transfer.
-
-## 🎥 Demo
-![ezgif com-crop](https://github.com/user-attachments/assets/ffac3789-16c5-4063-beb8-0ad24de3a382)
-
-
+Instead of a simple "snap-to-cursor" drag mechanic, this engine calculates object displacement during interaction to preserve momentum. This allows users to "flick" and throw objects across the simulation with realistic linear and angular kinetic transfer.
 
 ## ✨ Features
+* **Angular Physics:** Objects now support rotation, angular velocity, and rotational inertia. Throwing a box with a "flick" will cause it to spin realistically.
+* **OBB Collision & SAT:** Precise **Oriented Bounding Box** detection using the **Separating Axis Theorem (SAT)**. Collisions are accurate regardless of the object's rotation.
+* **Grid-Based Broad-phase:** Optimized collision loop using spatial partitioning (100x100 pixel grid). This significantly boosts performance when handling a large number of objects.
+* **Sleeping State:** Inactive objects (linear/angular velocity below a threshold) enter a "sleeping" state (grayed out) to save CPU cycles. They wake up automatically upon interaction or collision.
+* **Visual Debugger:** Real-time visualization of contact points (red), collision normals (blue), AABBs (green), and the spatial grid.
 * **Momentum-Based Interaction:** Objects track mouse velocity while grabbed, injecting kinetic energy back into the simulation upon release.
-* **Impulse Resolution:** Realistic bouncing and energy dissipation using configurable coefficients of restitution.
-* **AABB Collision & Response:** Efficient Axis-Aligned Bounding Box detection with immediate positional correction to prevent object "sinking."
-* **Dynamic Environment:** Includes gravity, air resistance, and floor friction (drag) to simulate a natural environment.
-* **Real-time Debugging:** Toggleable velocity vectors and a dynamic legend to monitor simulation parameters.
 
 ## 🚀 Quick Start
 
@@ -29,18 +25,18 @@ Instead of a simple "snap-to-cursor" drag mechanic, this engine calculates objec
 git clone https://github.com/l4aaa/Interactive-Physics-Sandbox.git
 cd Interactive-Physics-Sandbox
 
-# Compile (example using g++)
-g++ -c main.cpp
-g++ main.o -o physics-app -lsfml-graphics -lsfml-window -lsfml-system
+# Compile using the provided Makefile
+make
 
 # Run
 ./physics-app
 ```
 
 ## 🕹️ Controls
-* **Left Mouse Click:** Grab and drag objects.
-* **Right Mouse Click:** Spawn a new physics object at the cursor.
+* **Left Mouse Click:** Grab and drag objects (maintains click offset).
+* **Right Mouse Click:** Spawn a new rotating box at the cursor.
 * **Mouse Wheel:** Adjust "Bounciness" ($0.0$ to $1.5$) in real-time.
+* **[D] Key:** Toggle Visual Debugger (Grid, AABBs, Contact Points).
 * **[V] Key:** Toggle velocity text overlays.
 * **[L] Key:** Toggle the UI legend.
 * **[R] Key:** Reset the simulation.
@@ -52,19 +48,23 @@ g++ main.o -o physics-app -lsfml-graphics -lsfml-window -lsfml-system
 The simulation loop implements a discrete-time integration approach to handle motion and constraints:
 
 ### 1. Integration & Force Application
-The engine uses a semi-implicit Euler integration. Gravity is applied to the vertical velocity, while air resistance acts as a constant damping factor:
+The engine uses semi-implicit Euler integration for both linear and angular motion:
 $$V_{new} = (V_{old} + G \cdot \Delta t) \cdot \text{airResistance}$$
+$$\omega_{new} = \omega_{old} \cdot \text{airResistance}$$
 $$P_{new} = P_{old} + V_{new} \cdot \Delta t$$
+$$\theta_{new} = \theta_{old} + \omega_{new} \cdot \Delta t$$
 
-### 2. Interaction Physics
-When an object is grabbed, its velocity is not zeroed out. Instead, it is derived from the displacement between the current mouse position and the position in the previous frame:
-$$V = \frac{P_{current} - P_{previous}}{\Delta t}$$
-This ensures that when the mouse button is released, the object maintains the "throw" velocity.
+### 2. Collision Pipeline
+The engine follows a two-stage pipeline:
+1.  **Broad-phase (Grid):** Objects are mapped to a spatial grid. Only objects in the same or adjacent cells are tested for narrow-phase collisions ($O(N)$ expected complexity).
+2.  **Narrow-phase (SAT):** The Separating Axis Theorem finds the axis of minimum penetration. If an overlap exists, it calculates the **Collision Normal**, **Penetration Depth**, and **Contact Point**.
 
-### 3. Collision Handling
-The engine utilizes **AABB (Axis-Aligned Bounding Box)** logic. When two objects overlap, the engine calculates the penetration depth on both axes and resolves the collision:
-* **Positional Correction:** Objects are moved apart by half the overlap distance to resolve the intersection immediately.
-* **Impulse Exchange:** For simplicity and stability, velocities are swapped on the axis of collision and scaled by the `bounceDamping` coefficient to simulate energy loss.
+### 3. Impulse Resolution
+A robust impulse-based system resolves collisions by exchanging momentum between bodies at the contact point ($r$):
+*   **Positional Correction:** Objects are moved apart by the penetration depth to resolve intersections immediately.
+*   **Angular Impulse:** The change in velocity accounts for rotational inertia ($I$):
+    $$j = \frac{-(1 + e) \cdot V_{rel} \cdot n}{\frac{1}{M_a} + \frac{1}{M_b} + \frac{(r_a \times n)^2}{I_a} + \frac{(r_b \times n)^2}{I_b}}$$
+    This impulse ($j$) is then applied to both linear and angular velocities.
 
 ---
 
