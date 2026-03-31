@@ -2,27 +2,15 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <cmath>
 #include <iomanip>
 #include <sstream>
-
-struct PhysicsObject {
-    sf::RectangleShape shape;
-    sf::Vector2f velocity = {0.f, 0.f};
-    sf::Vector2f lastPos;
-    float smoothedVelocity = 0.f;
-    bool isGrabbed = false;
-};
+#include "PhysicsEngine.hpp"
 
 int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "Interactive-Physics-Sandbox");
     window.setFramerateLimit(60);
 
-    const float gravity = 981.0f;
-    float bounceDamping = 0.8f;
-    const float airResistance = 0.988f;
-    const float dragCoefficient = 0.7f;
-
+    PhysicsEngine engine;
     bool showLegend = true;
     bool showVelocity = true;
 
@@ -48,14 +36,16 @@ int main() {
     velocityText.setCharacterSize(14);
     velocityText.setFillColor(sf::Color::White);
 
-    std::vector<PhysicsObject> objects;
+    std::vector<PhysicsBody> bodies;
     auto spawnObject = [&](float x, float y) {
-        PhysicsObject obj;
+        PhysicsBody obj;
         obj.shape.setSize(sf::Vector2f(100.f, 100.f));
+        obj.shape.setOrigin(50.f, 50.f);
         obj.shape.setTexture(&helloKittyTexture);
-        obj.shape.setPosition(x, y);
-        obj.velocity = sf::Vector2f(0.f, 0.f);
-        objects.push_back(obj);
+        obj.shape.setPosition(x + 50.f, y + 50.f);
+        obj.mass = 1.0f;
+        obj.inertia = (1.f/12.f) * obj.mass * (100.f*100.f + 100.f*100.f);
+        bodies.push_back(obj);
     };
 
     spawnObject(350.f, 50.f);
@@ -64,6 +54,7 @@ int main() {
     while (window.isOpen()) {
         sf::Time elapsed = clock.restart();
         float dt = elapsed.asSeconds();
+        if (dt > 0.1f) dt = 0.1f; // Cap dt to prevent tunneling
 
         sf::Vector2i mousePos = sf::Mouse::getPosition(window);
         sf::Event event;
@@ -72,18 +63,19 @@ int main() {
             if (event.type == sf::Event::Closed) window.close();
 
             if (event.type == sf::Event::MouseWheelScrolled) {
-                bounceDamping += event.mouseWheelScroll.delta * 0.05f;
-                if (bounceDamping < 0.f) bounceDamping = 0.f;
-                if (bounceDamping > 1.5f) bounceDamping = 1.5f;
+                engine.params.bounceDamping += event.mouseWheelScroll.delta * 0.05f;
+                if (engine.params.bounceDamping < 0.f) engine.params.bounceDamping = 0.f;
+                if (engine.params.bounceDamping > 1.5f) engine.params.bounceDamping = 1.5f;
             }
 
             if (event.type == sf::Event::KeyPressed) {
                 if (event.key.code == sf::Keyboard::R) {
-                    objects.clear();
+                    bodies.clear();
                     spawnObject(350.f, 50.f);
                 }
                 if (event.key.code == sf::Keyboard::L) showLegend = !showLegend;
                 if (event.key.code == sf::Keyboard::V) showVelocity = !showVelocity;
+                if (event.key.code == sf::Keyboard::D) engine.debugEnabled = !engine.debugEnabled;
             }
 
             if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
@@ -91,99 +83,102 @@ int main() {
             }
 
             if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-                for (auto& obj : objects) {
-                    if (obj.shape.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePos))) {
+                for (auto& obj : bodies) {
+                    if (isInsideOBB(static_cast<sf::Vector2f>(mousePos), obj.getVertices())) {
                         obj.isGrabbed = true;
+                        obj.grabOffset = obj.shape.getPosition() - static_cast<sf::Vector2f>(mousePos);
+                        obj.wakeUp();
                         break;
                     }
                 }
             }
 
             if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
-                for (auto& obj : objects) obj.isGrabbed = false;
+                for (auto& obj : bodies) obj.isGrabbed = false;
             }
         }
 
+        // Mouse Drag Interaction
+        for (auto& obj : bodies) {
+            if (obj.isGrabbed) {
+                obj.lastPos = obj.shape.getPosition();
+                obj.shape.setPosition(static_cast<float>(mousePos.x) + obj.grabOffset.x,
+                                      static_cast<float>(mousePos.y) + obj.grabOffset.y);
+                if (dt > 0) {
+                    obj.velocity = (obj.shape.getPosition() - obj.lastPos) / dt;
+                }
+            }
+        }
+
+        engine.update(bodies, dt, window.getSize());
+
+        // UI Text
         std::stringstream ss;
         ss << "CONTROLS:\n"
            << "[Left Click]  Grab & Throw\n"
            << "[Right Click] Spawn Object\n"
-           << "[Scroll]      Bounciness: " << std::fixed << std::setprecision(2) << bounceDamping << "\n"
+           << "[Scroll]      Bounciness: " << std::fixed << std::setprecision(2) << engine.params.bounceDamping << "\n"
+           << "[D]           Debug View: " << (engine.debugEnabled ? "ON" : "OFF") << "\n"
            << "[L]           Toggle Legend\n"
            << "[V]           Toggle Velocity\n"
            << "[R]           Reset Simulation";
         legend.setString(ss.str());
 
-        for (auto& obj : objects) {
-            if (obj.isGrabbed) {
-                obj.lastPos = obj.shape.getPosition();
-                obj.shape.setPosition(static_cast<float>(mousePos.x) - obj.shape.getSize().x / 2,
-                                      static_cast<float>(mousePos.y) - obj.shape.getSize().y / 2);
-                if (dt > 0) {
-                    obj.velocity = (obj.shape.getPosition() - obj.lastPos) / dt;
-                }
-            } else {
-                obj.velocity.y += gravity * dt;
-                obj.velocity *= airResistance;
-                obj.shape.move(obj.velocity * dt);
-
-                sf::FloatRect bounds = obj.shape.getGlobalBounds();
-                if (bounds.top + bounds.height > window.getSize().y) {
-                    obj.shape.setPosition(bounds.left, window.getSize().y - bounds.height);
-                    obj.velocity.y = -obj.velocity.y * bounceDamping;
-                    obj.velocity.x *= dragCoefficient;
-                }
-                if (bounds.top < 0) {
-                    obj.shape.setPosition(bounds.left, 0);
-                    obj.velocity.y = -obj.velocity.y * bounceDamping;
-                }
-                if (bounds.left < 0) {
-                    obj.shape.setPosition(0, bounds.top);
-                    obj.velocity.x = -obj.velocity.x * bounceDamping;
-                }
-                if (bounds.left + bounds.width > window.getSize().x) {
-                    obj.shape.setPosition(window.getSize().x - bounds.width, bounds.top);
-                    obj.velocity.x = -obj.velocity.x * bounceDamping;
-                }
-            }
-        }
-
-        for (size_t i = 0; i < objects.size(); ++i) {
-            for (size_t j = i + 1; j < objects.size(); ++j) {
-                sf::FloatRect overlap;
-                if (objects[i].shape.getGlobalBounds().intersects(objects[j].shape.getGlobalBounds(), overlap)) {
-                    if (overlap.width < overlap.height) {
-                        float push = overlap.width / 2.0f;
-                        float dir = (objects[i].shape.getPosition().x < objects[j].shape.getPosition().x) ? -1.f : 1.f;
-                        objects[i].shape.move(push * dir, 0);
-                        objects[j].shape.move(push * -dir, 0);
-                        std::swap(objects[i].velocity.x, objects[j].velocity.x);
-                        objects[i].velocity.x *= bounceDamping;
-                        objects[j].velocity.x *= bounceDamping;
-                    } else {
-                        float push = overlap.height / 2.0f;
-                        float dir = (objects[i].shape.getPosition().y < objects[j].shape.getPosition().y) ? -1.f : 1.f;
-                        objects[i].shape.move(0, push * dir);
-                        objects[j].shape.move(0, push * -dir);
-                        std::swap(objects[i].velocity.y, objects[j].velocity.y);
-                        objects[i].velocity.y *= bounceDamping;
-                        objects[j].velocity.y *= bounceDamping;
-                    }
-                }
-            }
-        }
-
         window.clear(sf::Color::Black);
+
+        // Debug Grid
+        if (engine.debugEnabled) {
+            for (int x = 0; x < 800; x += 100) {
+                sf::Vertex line[] = { sf::Vertex(sf::Vector2f(x, 0), sf::Color(50, 50, 50)), sf::Vertex(sf::Vector2f(x, 600), sf::Color(50, 50, 50)) };
+                window.draw(line, 2, sf::Lines);
+            }
+            for (int y = 0; y < 600; y += 100) {
+                sf::Vertex line[] = { sf::Vertex(sf::Vector2f(0, y), sf::Color(50, 50, 50)), sf::Vertex(sf::Vector2f(800, y), sf::Color(50, 50, 50)) };
+                window.draw(line, 2, sf::Lines);
+            }
+        }
         
-        for (auto& obj : objects) {
+        for (auto& obj : bodies) {
+            if (obj.isSleeping) obj.shape.setFillColor(sf::Color(100, 100, 100, 200));
+            else obj.shape.setFillColor(sf::Color::White);
+            
             window.draw(obj.shape);
-            float currentSpeed = std::sqrt(obj.velocity.x * obj.velocity.x + obj.velocity.y * obj.velocity.y);
+            
+            float currentSpeed = std::sqrt(lengthSq(obj.velocity));
             obj.smoothedVelocity = obj.smoothedVelocity + (currentSpeed - obj.smoothedVelocity) * 0.1f;
             
             if (showVelocity) {
                 velocityText.setString("Vel: " + std::to_string(static_cast<int>(obj.smoothedVelocity)));
-                velocityText.setPosition(obj.shape.getPosition().x, obj.shape.getPosition().y - 20.f);
+                velocityText.setPosition(obj.shape.getPosition().x - 40.f, obj.shape.getPosition().y - 70.f);
                 window.draw(velocityText);
+            }
+
+            if (engine.debugEnabled) {
+                sf::FloatRect bounds = obj.shape.getGlobalBounds();
+                sf::RectangleShape aabb;
+                aabb.setPosition(bounds.left, bounds.top);
+                aabb.setSize(sf::Vector2f(bounds.width, bounds.height));
+                aabb.setFillColor(sf::Color::Transparent);
+                aabb.setOutlineColor(sf::Color::Green);
+                aabb.setOutlineThickness(1.f);
+                window.draw(aabb);
+            }
+        }
+
+        // Debug Contacts
+        if (engine.debugEnabled) {
+            for (const auto& contact : engine.contacts) {
+                sf::CircleShape dot(3.f);
+                dot.setOrigin(3.f, 3.f);
+                dot.setPosition(contact.position);
+                dot.setFillColor(sf::Color::Red);
+                window.draw(dot);
+
+                sf::Vertex line[] = {
+                    sf::Vertex(contact.position, sf::Color::Blue),
+                    sf::Vertex(contact.position + contact.normal * 20.f, sf::Color::Blue)
+                };
+                window.draw(line, 2, sf::Lines);
             }
         }
 
